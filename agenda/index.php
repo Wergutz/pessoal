@@ -1,3 +1,5 @@
 <?php
 
-echo "Sistema Agenda Online";
+echo "<?php
+
+echo "Deploy funcionando";";
