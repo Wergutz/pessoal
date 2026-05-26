@@ -22,8 +22,6 @@ jobs:
           script: |
             cd public_html
 
-            if [ ! -d ".git" ]; then
-              git clone https://github.com/Wergutz/pessoal.git .
-            else
-              git pull origin main
-            fi
+            rm -rf .git
+
+            git clone -b main https://github.com/Wergutz/pessoal.git .
