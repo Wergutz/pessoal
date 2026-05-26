@@ -1,0 +1,34 @@
+name: Deploy Hostinger
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Conectar na Hostinger e atualizar
+        uses: appleboy/ssh-action@master
+
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: 22
+
+          script: |
+            cd public_html
+            if [ ! -d "agenda" ]; then
+              mkdir agenda
+            fi
+
+            cd agenda
+
+            if [ ! -d ".git" ]; then
+              git clone https://github.com/Wergutz/pessoal.git .
+            else
+              git pull origin main
+            fi
