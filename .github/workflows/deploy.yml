@@ -20,8 +20,14 @@ jobs:
           port: 65002
 
           script: |
-            cd public_html
+            cd /home/u278289683/domains/eletronicagw.com.br/public_html
 
-            rm -rf .git
+            mkdir -p agenda
 
-            git clone -b main https://github.com/Wergutz/pessoal.git .
+            cd agenda
+
+            if [ ! -d ".git" ]; then
+              git clone -b main https://github.com/Wergutz/pessoal.git .
+            else
+              git pull origin main
+            fi
