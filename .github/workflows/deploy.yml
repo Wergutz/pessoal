@@ -20,5 +20,5 @@ jobs:
           REMOTE_USER: u278289683
           REMOTE_PORT: 65002
           SOURCE: agenda/
-          TARGET: ~/domains/eletronicagw.com.br/public_html/agenda/
+          TARGET: ~/domains/agenda.eletronicagw.com.br/public_html/
           EXCLUDE: ".git"
