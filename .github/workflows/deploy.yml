@@ -1,4 +1,4 @@
-name: Deploy Hostinger
+name: Deploy para eletronicagw.com.br/agenda
 
 on:
   push:
@@ -8,26 +8,17 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Conectar na Hostinger e atualizar
-        uses: appleboy/ssh-action@master
+      - name: Baixar repositório
+        uses: actions/checkout@v4
 
+      - name: Deploy via SSH (rsync) para Hostinger
+        uses: easingthemes/ssh-deploy@v5.1.0
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          password: ${{ secrets.PASSWORD }}
-          port: 65002
-
-          script: |
-            cd /home/u278289683/domains/eletronicagw.com.br/public_html
-
-            mkdir -p agenda
-
-            cd agenda
-
-            if [ ! -d ".git" ]; then
-              git clone -b main https://github.com/Wergutz/pessoal.git .
-            else
-              git pull origin main
-            fi
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          REMOTE_HOST: 147.93.38.158
+          REMOTE_USER: u278289683
+          REMOTE_PORT: 65002
+          SOURCE: agenda/
+          TARGET: ~/domains/eletronicagw.com.br/public_html/agenda/
+          EXCLUDE: ".git"
