@@ -5,7 +5,13 @@
 
 declare(strict_types=1);
 
-/** Ramos dos Escoteiros do Brasil com a faixa etária de cada um. */
+/**
+ * Ramos dos Escoteiros do Brasil.
+ *
+ * As faixas etárias aqui sao só o ponto de partida: quem manda em tempo de
+ * execução e ramos_disponiveis(), que le o que a equipe configurou. Use esta
+ * constante apenas para rótulos e para saber que códigos existem.
+ */
 const RAMOS = [
     'lobinho'   => ['rotulo' => 'Ramo Lobinho',   'min' => 6,  'max' => 10],
     'escoteiro' => ['rotulo' => 'Ramo Escoteiro', 'min' => 11, 'max' => 14],
@@ -51,6 +57,13 @@ function inscricao_validar(array $dados): array
 {
     $erros = [];
 
+    // A idade que vale e a do primeiro dia do evento. Enquanto essa data não
+    // estiver configurada, a conferência de ramo fica de fora (não da para
+    // reprovar ninguem por um evento sem data), mas a regra do responsável
+    // continua valendo pela idade de hoje, que e a leitura mais segura.
+    $referencia = config_ler('evento_inicio');
+    $referenciaIdade = $referencia !== '' ? $referencia : date('Y-m-d');
+
     $limpo = [
         'nome'                 => trim((string) ($dados['nome'] ?? '')),
         'nascimento'           => trim((string) ($dados['nascimento'] ?? '')),
@@ -81,11 +94,13 @@ function inscricao_validar(array $dados): array
         $erros['nascimento'] = 'A data de nascimento precisa estar no passado.';
     }
 
-    if (!isset(RAMOS[$limpo['ramo']])) {
+    $ramos = ramos_disponiveis();
+
+    if (!isset($ramos[$limpo['ramo']])) {
         $erros['ramo'] = 'Escolha o ramo.';
-    } elseif ($nascimento !== null) {
-        $idade = idade_em($limpo['nascimento'], config_ler('evento_inicio'));
-        $faixa = RAMOS[$limpo['ramo']];
+    } elseif ($nascimento !== null && validar_idade_ligado() && $referencia !== '') {
+        $idade = idade_em($limpo['nascimento'], $referencia);
+        $faixa = $ramos[$limpo['ramo']];
         if ($idade !== null && ($idade < $faixa['min'] || $idade > $faixa['max'])) {
             $erros['ramo'] = sprintf(
                 'Com %d anos na data do evento, a idade não corresponde ao %s (%d a %d anos).',
@@ -118,7 +133,7 @@ function inscricao_validar(array $dados): array
 
     // Menores de idade na data do evento precisam de responsável.
     $idade_evento = $nascimento !== null
-        ? idade_em($limpo['nascimento'], config_ler('evento_inicio'))
+        ? idade_em($limpo['nascimento'], $referenciaIdade)
         : null;
 
     if ($idade_evento !== null && $idade_evento < 18) {

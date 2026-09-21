@@ -38,7 +38,8 @@ function layout_topo(string $titulo, string $area = 'publico', string $paginaAtu
             <span class="marca-flor" aria-hidden="true">&#9906;</span>
             <span>
                 <strong><?= e($nomeEvento) ?></strong>
-                <small><?= e(evento_periodo()) ?> &middot; <?= e($config['evento_cidade']) ?>/<?= e($config['evento_uf']) ?></small>
+                <?php $subtitulo = evento_subtitulo(); ?>
+                <?php if ($subtitulo !== ''): ?><small><?= e($subtitulo) ?></small><?php endif; ?>
             </span>
         </a>
         <nav class="menu">
@@ -95,8 +96,8 @@ function layout_rodape(string $area = 'publico'): void
 </main>
 <footer class="rodape">
     <div class="conteiner rodape-interno">
-        <p><strong><?= e($config['evento_nome']) ?></strong> &middot; <?= e($config['evento_local']) ?>,
-           <?= e($config['evento_cidade']) ?>/<?= e($config['evento_uf']) ?></p>
+        <?php $local = evento_local_completo(); ?>
+        <p><strong><?= e($config['evento_nome']) ?></strong><?= $local !== '' ? ' &middot; ' . e($local) : '' ?></p>
         <p>
             <?php if ($config['contato_email'] !== ''): ?>
                 Contato: <a href="mailto:<?= e($config['contato_email']) ?>"><?= e($config['contato_email']) ?></a>

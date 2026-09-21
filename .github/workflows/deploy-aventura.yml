@@ -1,4 +1,13 @@
-name: Deploy Aventura Escoteira 2026
+name: Aventura Escoteira 2026
+
+# Os testes rodam sempre. O deploy NAO roda sozinho: o dominio ainda nao foi
+# definido, entao publicar automaticamente so acertaria por sorte.
+#
+# Para ligar o deploy, defina no repositorio (Settings > Secrets and variables
+# > Actions) as variaveis AVENTURA_REMOTE_HOST, AVENTURA_REMOTE_USER,
+# AVENTURA_REMOTE_PORT e AVENTURA_TARGET, mais o secret SSH_PRIVATE_KEY.
+# Depois use Run workflow, ou troque o "if" do job deploy para publicar a
+# cada push na main.
 
 on:
   push:
@@ -7,10 +16,19 @@ on:
     paths:
       - 'aventura/**'
       - '.github/workflows/deploy-aventura.yml'
+  pull_request:
+    paths:
+      - 'aventura/**'
   workflow_dispatch:
+    inputs:
+      publicar:
+        description: 'Publicar no servidor depois dos testes'
+        type: boolean
+        default: false
 
 jobs:
   testes:
+    name: Sintaxe e testes
     runs-on: ubuntu-latest
     steps:
       - name: Baixar repositório
@@ -29,23 +47,39 @@ jobs:
         run: php aventura/testes/executar.php
 
   deploy:
+    name: Publicar
     needs: testes
+    if: github.event_name == 'workflow_dispatch' && inputs.publicar
     runs-on: ubuntu-latest
     steps:
       - name: Baixar repositório
         uses: actions/checkout@v4
 
-      - name: Deploy via SSH (rsync) para Hostinger
+      - name: Conferir se o destino ja foi configurado
+        run: |
+          faltando=""
+          [ -n "${{ vars.AVENTURA_REMOTE_HOST }}" ] || faltando="$faltando AVENTURA_REMOTE_HOST"
+          [ -n "${{ vars.AVENTURA_REMOTE_USER }}" ] || faltando="$faltando AVENTURA_REMOTE_USER"
+          [ -n "${{ vars.AVENTURA_TARGET }}" ]      || faltando="$faltando AVENTURA_TARGET"
+          [ -n "${{ secrets.SSH_PRIVATE_KEY }}" ]   || faltando="$faltando SSH_PRIVATE_KEY"
+          if [ -n "$faltando" ]; then
+            echo "::error::Destino do deploy ainda não configurado. Falta:$faltando"
+            echo "Defina em Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          echo "Destino configurado. Publicando em ${{ vars.AVENTURA_TARGET }}"
+
+      - name: Deploy via SSH (rsync)
         uses: easingthemes/ssh-deploy@v5.1.0
         with:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          REMOTE_HOST: 147.93.38.158
-          REMOTE_USER: u278289683
-          REMOTE_PORT: 65002
+          REMOTE_HOST: ${{ vars.AVENTURA_REMOTE_HOST }}
+          REMOTE_USER: ${{ vars.AVENTURA_REMOTE_USER }}
+          REMOTE_PORT: ${{ vars.AVENTURA_REMOTE_PORT || '22' }}
           SOURCE: aventura/
-          TARGET: ~/domains/aventura.eletronicagw.com.br/public_html/
-          # O rsync roda com --delete. Os arquivos listados aqui sao ignorados
-          # pela sincronia E protegidos da exclusao, entao o banco SQLite do
+          TARGET: ${{ vars.AVENTURA_TARGET }}
+          # O rsync roda com --delete. Os arquivos listados aqui ficam de fora
+          # da sincronia E protegidos da exclusao, entao o banco SQLite do
           # servidor sobrevive a cada publicacao. O data/.htaccess continua
           # sendo enviado, porque so os *.sqlite* estao de fora.
           EXCLUDE: "/data/*.sqlite*, /testes/, .git*, *.md"

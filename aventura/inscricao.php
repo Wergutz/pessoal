@@ -62,9 +62,15 @@ layout_topo('Inscrição', 'publico', 'inscricao.php');
 ?>
 
 <h1>Ficha de inscrição</h1>
+<?php
+$detalhes = array_filter([
+    evento_periodo(),
+    $config['evento_valor'] !== '' ? 'taxa de R$ ' . $config['evento_valor'] : '',
+], static fn (string $parte): bool => $parte !== '');
+?>
 <p>
-    <?= e($config['evento_nome']) ?> &middot; <?= e(evento_periodo()) ?> &middot;
-    taxa de R$ <?= e($config['evento_valor']) ?>.
+    <?= e($config['evento_nome']) ?><?= $detalhes !== []
+        ? ' &middot; ' . e(implode(' · ', $detalhes)) : '' ?>
 </p>
 
 <?php if (!$situacao['aberta']): ?>
@@ -101,14 +107,16 @@ layout_topo('Inscrição', 'publico', 'inscricao.php');
                 <label for="ramo">Ramo *</label>
                 <select id="ramo" name="ramo" required>
                     <option value="">Escolha...</option>
-                    <?php foreach (RAMOS as $codigo => $ramo): ?>
+                    <?php foreach (ramos_disponiveis() as $codigo => $ramo): ?>
                         <option value="<?= e($codigo) ?>"<?= $dados['ramo'] === $codigo ? ' selected' : '' ?>>
                             <?= e($ramo['rotulo']) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
                 <?= erro_campo($erros, 'ramo') ?>
-                <span class="ajuda">A idade considerada e a do primeiro dia do evento.</span>
+                <?php if (validar_idade_ligado() && config_ler('evento_inicio') !== ''): ?>
+                    <span class="ajuda">A idade considerada é a do primeiro dia do evento.</span>
+                <?php endif; ?>
             </div>
 
             <div class="campo">
@@ -169,7 +177,8 @@ layout_topo('Inscrição', 'publico', 'inscricao.php');
         </div>
     </fieldset>
 
-    <fieldset id="bloco-responsavel" data-referencia="<?= e($config['evento_inicio']) ?>">
+    <fieldset id="bloco-responsavel"
+              data-referencia="<?= e($config['evento_inicio'] !== '' ? $config['evento_inicio'] : date('Y-m-d')) ?>">
         <legend>Responsável (obrigatório para menores de 18 anos)</legend>
         <div class="grade grade-2">
             <div class="campo<?= classe_campo($erros, 'responsavel_nome') ?>">

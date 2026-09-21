@@ -35,11 +35,17 @@ resto do site.
 
 - **Idade x ramo.** A idade considerada é a do primeiro dia do evento, não a
   de hoje. Quem não cabe na faixa do ramo escolhido não consegue se inscrever.
+  As faixas são **editáveis por ramo** em Configurações, dá para desativar os
+  ramos que não participam, e a conferência inteira pode ser desligada. As
+  faixas vêm preenchidas com as dos Escoteiros do Brasil só como ponto de
+  partida. Sem data de evento definida, a conferência não roda — o sistema
+  não reprova ninguém por um evento que ainda não tem data.
 - **Responsável.** Obrigatório apenas para quem ainda será menor de 18 anos
   na data do evento.
 - **Vagas e prazo.** As inscrições fecham sozinhas quando o prazo vence ou as
   vagas acabam. As vagas são reconferidas na hora de gravar, não só ao abrir
-  a página, então duas pessoas não ocupam a mesma última vaga.
+  a página, então duas pessoas não ocupam a mesma última vaga. Total de vagas
+  `0` significa sem limite.
 - **Duplicidade.** Mesmo nome e mesma data de nascimento não entram duas vezes.
 - **Distribuição de patrulhas.** Equilibra o tamanho das patrulhas e evita
   juntar gente do mesmo grupo escoteiro, que é o esperado num evento regional.
@@ -47,14 +53,30 @@ resto do site.
 - **Cancelar ≠ excluir.** Cancelar libera a vaga e preserva o histórico.
   Excluir de verdade só o administrador faz.
 
+## O sistema nasce sem evento definido
+
+Não há data, local, valor nem texto embutido no código. Um sistema recém
+instalado fica assim, de propósito:
+
+- as **inscrições nascem fechadas** e não abrem nem se alguém marcar
+  *Abertas* — enquanto faltar configuração obrigatória, a regra de abertura
+  reprova;
+- o **site público** não mostra data, local ou valor: exibe um aviso neutro
+  de que as informações serão publicadas em breve;
+- o **painel** lista exatamente o que falta preencher, com link para a tela
+  de Configurações.
+
+Assim nada vai ao ar com informação inventada, e a equipe preenche no ritmo
+que quiser. O que é obrigatório para abrir inscrições: datas de início e
+término, local, cidade, UF, prazo de inscrição e e-mail de contato.
+
 ## Instalação
 
-1. Publique a pasta `aventura/` no servidor (o workflow do GitHub Actions já
-   faz isso; veja abaixo).
+1. Publique a pasta `aventura/` no servidor.
 2. Abra `https://SEU-DOMINIO/instalar.php` e crie o usuário administrador.
    O banco e as tabelas são criados no primeiro acesso.
-3. Entre em **Configurações** e ajuste datas, local, valor, vagas e textos —
-   os valores que vêm de fábrica são só um ponto de partida.
+3. Entre em **Configurações** e preencha as informações do evento. O painel
+   mostra o que ainda falta.
 
 `instalar.php` se recusa a rodar depois que existe um usuário, então pode
 ficar no servidor sem risco.
@@ -88,13 +110,14 @@ o banco nunca vai para o Git. Se preferir, aponte `banco` em
 php testes/executar.php
 ```
 
-174 verificações sem dependência externa, em banco temporário próprio. Se
+224 verificações sem dependência externa, em banco temporário próprio. Se
 você tiver um `src/config.local.php`, ele é guardado e devolvido ao final —
 os testes nunca tocam no seu banco de trabalho.
 
-Cobrem validação da ficha, faixas etárias, exigência de responsável, vagas e
-prazos, filtros, distribuição de patrulhas, empates no ranking, autenticação,
-CSRF, limite de envios e resistência a SQL injection e XSS. Há também uma
+Cobrem validação da ficha, faixas etárias configuráveis, exigência de
+responsável, o estado de sistema recém instalado, vagas e prazos, filtros,
+distribuição de patrulhas, empates no ranking, autenticação, CSRF, limite de
+envios e resistência a SQL injection e XSS. Há também uma
 varredura que reprova qualquer literal SQL que tenha ganhado acento por
 engano — erro fácil de cometer num código em português e que só apareceria
 em produção.
@@ -116,16 +139,31 @@ em produção.
 
 ## Publicação
 
-`.github/workflows/deploy-aventura.yml` envia a pasta por rsync quando algo
-em `aventura/` muda em `main`, e também sob demanda pelo botão
-*Run workflow*.
+`.github/workflows/deploy-aventura.yml` tem dois jobs.
 
-O destino é `~/domains/aventura.eletronicagw.com.br/public_html/`, no mesmo
-padrão do deploy da agenda. **Confira o subdomínio antes do primeiro deploy**
-e ajuste `TARGET` se for outro.
+**Testes** rodam sempre: a cada push ou pull request que toque em `aventura/`.
 
-O rsync roda com `--delete`, mas `data/` está em `EXCLUDE`: o banco no
-servidor sobrevive a cada publicação.
+**Publicar** não roda sozinho, porque o domínio ainda não foi definido. Ele só
+executa por *Run workflow* com a opção `publicar` marcada, e antes de enviar
+qualquer coisa confere se o destino foi configurado — se não foi, falha com
+uma mensagem dizendo o que falta, sem tocar no servidor.
+
+Para ligar quando o domínio estiver definido, em
+*Settings › Secrets and variables › Actions*:
+
+| Onde | Nome | Exemplo |
+| --- | --- | --- |
+| Variable | `AVENTURA_REMOTE_HOST` | `147.93.38.158` |
+| Variable | `AVENTURA_REMOTE_USER` | `u278289683` |
+| Variable | `AVENTURA_REMOTE_PORT` | `65002` (padrão `22`) |
+| Variable | `AVENTURA_TARGET` | `~/domains/SEU-DOMINIO/public_html/` |
+| Secret | `SSH_PRIVATE_KEY` | a chave privada |
+
+Para publicar a cada push na `main` depois disso, troque o `if:` do job
+`deploy` por `if: github.ref == 'refs/heads/main'`.
+
+O rsync roda com `--delete`, mas `/data/*.sqlite*` está em `EXCLUDE`: o banco
+no servidor sobrevive a cada publicação.
 
 ## Estrutura
 

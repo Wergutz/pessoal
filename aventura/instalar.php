@@ -40,7 +40,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($erros === []) {
         $resultado = usuario_criar($nome, $email, (string) $senha, 'admin');
         if ($resultado['ok']) {
-            recado('ok', 'Usuário criado. Entre com o e-mail e a senha que você acabou de definir.');
+            recado('ok', 'Usuário criado. Entre e preencha as informações do evento em Configurações — '
+                       . 'o sistema começa sem data, local nem valor definidos.');
             redirecionar('admin/index.php');
         }
         $erros = $resultado['erros'];

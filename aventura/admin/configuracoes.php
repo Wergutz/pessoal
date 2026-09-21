@@ -16,9 +16,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($acao === 'evento') {
         $valores = [];
+
+        // Caixas de marcação não chegam no POST quando estão desmarcadas,
+        // então o valor delas é decidido aqui, não pelo laço abaixo.
+        $valores['inscricoes_abertas'] = post('inscricoes_abertas') === '1' ? '1' : '0';
+        $valores['validar_idade'] = post('validar_idade') === '1' ? '1' : '0';
+        $valores['ramos_ativos'] = implode(',', array_map(
+            'strval',
+            (array) ($_POST['ramos'] ?? [])
+        ));
+
         foreach (array_keys(CONFIG_PADRAO) as $chave) {
-            if ($chave === 'inscricoes_abertas') {
-                $valores[$chave] = post($chave) === '1' ? '1' : '0';
+            if (array_key_exists($chave, $valores)) {
                 continue;
             }
             if (array_key_exists($chave, $_POST)) {
@@ -26,21 +35,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // Campo em branco e valido: o evento pode estar sendo montado aos poucos.
+        // So o que foi preenchido e conferido.
         $erros = [];
         foreach (['evento_inicio', 'evento_fim', 'inscricoes_ate'] as $chave) {
-            if (isset($valores[$chave]) && data_valida($valores[$chave]) === null) {
+            if (($valores[$chave] ?? '') !== '' && data_valida($valores[$chave]) === null) {
                 $erros[] = 'Data inválida em ' . $chave . '.';
             }
         }
-        if (isset($valores['evento_inicio'], $valores['evento_fim'])
+        if (($valores['evento_inicio'] ?? '') !== '' && ($valores['evento_fim'] ?? '') !== ''
             && $valores['evento_fim'] < $valores['evento_inicio']) {
             $erros[] = 'O término do evento não pode ser antes do início.';
         }
-        if (isset($valores['vagas_total']) && !ctype_digit($valores['vagas_total'])) {
+        if (($valores['vagas_total'] ?? '') !== '' && !ctype_digit($valores['vagas_total'])) {
             $erros[] = 'O total de vagas deve ser um número inteiro.';
         }
-        if (isset($valores['evento_uf']) && !in_array(strtoupper($valores['evento_uf']), UFS, true)) {
+        if (($valores['evento_uf'] ?? '') !== ''
+            && !in_array(strtoupper($valores['evento_uf']), UFS, true)) {
             $erros[] = 'UF do evento inválida.';
+        }
+
+        // Faixas etárias: min <= max e dentro de limites sensatos.
+        foreach (array_keys(RAMOS) as $codigo) {
+            $min = $valores['ramo_' . $codigo . '_min'] ?? null;
+            $max = $valores['ramo_' . $codigo . '_max'] ?? null;
+            if ($min === null || $max === null) {
+                continue;
+            }
+            if (!ctype_digit($min) || !ctype_digit($max) || (int) $min > (int) $max
+                || (int) $max > 120) {
+                $erros[] = 'Faixa etária inválida em ' . ramo_rotulo($codigo) . '.';
+            }
+        }
+
+        // Ramos ativos: só códigos conhecidos, e ao menos um.
+        $ativos = array_values(array_intersect(
+            array_map('trim', explode(',', $valores['ramos_ativos'] ?? '')),
+            array_keys(RAMOS)
+        ));
+        if ($ativos === []) {
+            $erros[] = 'Escolha ao menos um ramo participante.';
+        } else {
+            $valores['ramos_ativos'] = implode(',', $ativos);
         }
 
         if ($erros === []) {
@@ -99,6 +135,20 @@ layout_topo('Configurações', 'painel', 'configuracoes.php');
 
 <h1>Configurações</h1>
 
+<?php $pendencias = config_pendencias(); ?>
+<?php if ($pendencias !== []): ?>
+    <div class="recado recado-aviso">
+        <strong>Falta definir:</strong> <?= e(implode(', ', $pendencias)) ?>.
+        Enquanto isso, as inscrições permanecem fechadas e o site público não
+        mostra data, local nem valor.
+    </div>
+<?php else: ?>
+    <div class="recado recado-ok">
+        O evento está configurado. Use <em>Situação</em>, logo abaixo, para
+        abrir as inscrições quando quiser.
+    </div>
+<?php endif; ?>
+
 <form method="post" action="configuracoes.php" class="cartao">
     <?= csrf_campo() ?>
     <h2 style="margin-top:0">O evento</h2>
@@ -134,6 +184,7 @@ layout_topo('Configurações', 'painel', 'configuracoes.php');
             <label for="vagas_total">Total de vagas</label>
             <input type="number" id="vagas_total" name="vagas_total" min="0" max="10000"
                    value="<?= e($config['vagas_total']) ?>">
+            <span class="ajuda">0 = sem limite de vagas.</span>
         </div>
     </div>
 
@@ -151,6 +202,7 @@ layout_topo('Configurações', 'painel', 'configuracoes.php');
         <div class="campo">
             <label for="evento_uf">UF</label>
             <select id="evento_uf" name="evento_uf">
+                <option value="">A definir</option>
                 <?php foreach (UFS as $uf): ?>
                     <option value="<?= e($uf) ?>"<?= $config['evento_uf'] === $uf ? ' selected' : '' ?>>
                         <?= e($uf) ?></option>
@@ -172,6 +224,53 @@ layout_topo('Configurações', 'painel', 'configuracoes.php');
             <label for="inscricoes_ate">Prazo final</label>
             <input type="date" id="inscricoes_ate" name="inscricoes_ate" value="<?= e($config['inscricoes_ate']) ?>">
         </div>
+    </div>
+
+    <h2>Ramos participantes</h2>
+    <p class="ajuda">
+        Desmarque os ramos que não participam desta edição e ajuste as faixas
+        etárias conforme a sua realidade. A idade considerada é a do primeiro
+        dia do evento.
+    </p>
+
+    <div class="campo caixa-marcacao">
+        <input type="checkbox" id="validar_idade" name="validar_idade" value="1"
+               <?= $config['validar_idade'] === '1' ? 'checked' : '' ?>>
+        <label for="validar_idade">
+            Conferir a idade contra a faixa do ramo na hora da inscrição
+            <span class="ajuda">Desligado, o sistema aceita qualquer idade em qualquer ramo.</span>
+        </label>
+    </div>
+
+    <?php $ativos = explode(',', $config['ramos_ativos']); ?>
+    <div class="rolagem">
+        <table>
+            <thead>
+                <tr><th>Participa</th><th>Ramo</th><th class="numero">Idade mínima</th><th class="numero">Idade máxima</th></tr>
+            </thead>
+            <tbody>
+            <?php foreach (RAMOS as $codigo => $ramo): ?>
+                <tr>
+                    <td>
+                        <input type="checkbox" id="ramo-<?= e($codigo) ?>" name="ramos[]"
+                               value="<?= e($codigo) ?>"
+                               <?= in_array($codigo, $ativos, true) ? 'checked' : '' ?>>
+                    </td>
+                    <td><label for="ramo-<?= e($codigo) ?>"><?= e($ramo['rotulo']) ?></label></td>
+                    <td class="numero" style="max-width:120px">
+                        <input type="number" name="ramo_<?= e($codigo) ?>_min" min="0" max="120"
+                               value="<?= e($config['ramo_' . $codigo . '_min']) ?>"
+                               aria-label="Idade mínima do <?= e($ramo['rotulo']) ?>">
+                    </td>
+                    <td class="numero" style="max-width:120px">
+                        <input type="number" name="ramo_<?= e($codigo) ?>_max" min="0" max="120"
+                               value="<?= e($config['ramo_' . $codigo . '_max']) ?>"
+                               aria-label="Idade máxima do <?= e($ramo['rotulo']) ?>">
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
     </div>
 
     <h2>Contato</h2>

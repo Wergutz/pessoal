@@ -21,10 +21,27 @@ layout_topo('Painel', 'painel', 'painel.php');
 ?>
 
 <h1>Ola, <?= e(explode(' ', $usuario['nome'])[0]) ?>!</h1>
+<?php $pendencias = config_pendencias(); ?>
+
+<?php if ($pendencias !== []): ?>
+    <div class="recado recado-aviso">
+        <strong>O evento ainda não está configurado.</strong>
+        Falta definir: <?= e(implode(', ', $pendencias)) ?>.
+        As inscrições ficam fechadas até lá, para o site não mostrar
+        informação que ainda não foi decidida.
+        <?php if (e_admin()): ?>
+            <br><a href="configuracoes.php">Configurar agora</a>
+        <?php else: ?>
+            <br>Peça a um administrador para preencher em Configurações.
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
+
 <p>
-    <?= e($config['evento_nome']) ?> &middot; <?= e(evento_periodo()) ?> &middot;
+    <?= e($config['evento_nome']) ?><?= evento_periodo() !== ''
+        ? ' &middot; ' . e(evento_periodo()) : '' ?> &middot;
     <?php if ($dias === null): ?>
-        data do evento não configurada
+        data ainda não definida
     <?php elseif ($dias > 0): ?>
         faltam <strong><?= $dias ?></strong> dias
     <?php elseif ($dias === 0): ?>
@@ -44,8 +61,10 @@ layout_topo('Painel', 'painel', 'painel.php');
         <span class="rotulo">pendentes</span>
     </div>
     <div class="indicador">
-        <span class="numero"><?= (int) $situacao['vagas_restantes'] ?></span>
-        <span class="rotulo">vagas restantes de <?= (int) $config['vagas_total'] ?></span>
+        <span class="numero"><?= e(vagas_texto($situacao['vagas_restantes'])) ?></span>
+        <span class="rotulo"><?= (int) $config['vagas_total'] > 0
+            ? 'vagas restantes de ' . (int) $config['vagas_total']
+            : 'vagas (total não definido)' ?></span>
     </div>
     <div class="indicador">
         <span class="numero"><?= (int) $resumo['grupos'] ?></span>
@@ -60,7 +79,7 @@ layout_topo('Painel', 'painel', 'painel.php');
     </div>
 <?php endif; ?>
 
-<?php if (!$situacao['aberta']): ?>
+<?php if (!$situacao['aberta'] && $situacao['motivo'] !== 'sem_configuracao'): ?>
     <div class="recado recado-aviso" style="margin-top:1rem">
         Inscrições fechadas: <?= e(inscricoes_motivo_texto($situacao['motivo'])) ?>
     </div>
@@ -71,10 +90,10 @@ layout_topo('Painel', 'painel', 'painel.php');
         <h2 style="margin-top:0">Inscritos por ramo</h2>
         <table>
             <tbody>
-            <?php foreach (RAMOS as $codigo => $ramo): ?>
+            <?php foreach (ramos_disponiveis() as $codigo => $ramo): ?>
                 <tr>
                     <td><?= e($ramo['rotulo']) ?></td>
-                    <td class="numero"><strong><?= (int) $resumo['por_ramo'][$codigo] ?></strong></td>
+                    <td class="numero"><strong><?= (int) ($resumo['por_ramo'][$codigo] ?? 0) ?></strong></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>

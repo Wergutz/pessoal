@@ -175,6 +175,11 @@ config_gravar_varias([
     'inscricoes_abertas' => '1',
     'inscricoes_ate'     => '2026-12-31',
     'vagas_total'        => '150',
+    // As obrigatórias precisam estar preenchidas, senão as inscrições nem abrem.
+    'evento_local'       => 'Campo Escola Regional',
+    'evento_cidade'      => 'Santa Cruz do Sul',
+    'evento_uf'          => 'RS',
+    'contato_email'      => 'contato@example.com',
 ]);
 
 $v = inscricao_validar(ficha());
@@ -575,6 +580,139 @@ verificar('HTML e guardado como texto',
     str_contains((string) $recuperada['nome'], '<script>'));
 verificar('HTML sai escapado na tela',
     !str_contains(e((string) $recuperada['nome']), '<script>'));
+
+// ------------------------------------------- sistema recem-instalado ---
+
+grupo('Sistema recém-instalado');
+
+// Estado de fabrica: nada de evento inventado.
+igual('nenhuma data de evento de fábrica', '', CONFIG_PADRAO['evento_inicio']);
+igual('nenhum local de fábrica', '', CONFIG_PADRAO['evento_local']);
+igual('nenhum valor de fábrica', '', CONFIG_PADRAO['evento_valor']);
+igual('nenhum contato de fábrica', '', CONFIG_PADRAO['contato_email']);
+igual('inscrições nascem fechadas', '0', CONFIG_PADRAO['inscricoes_abertas']);
+igual('sem limite de vagas de fábrica', '0', CONFIG_PADRAO['vagas_total']);
+
+// Zera a configuração para simular a primeira execução.
+db_exec('DELETE FROM configuracoes');
+config_todas(true);
+
+$pendencias = config_pendencias();
+verificar('sistema novo acusa pendências', $pendencias !== []);
+verificar('evento_configurado() e falso no começo', !evento_configurado());
+
+foreach (array_keys(CONFIG_OBRIGATORIAS) as $obrigatoria) {
+    verificar('pendência acusada: ' . $obrigatoria, isset($pendencias[$obrigatoria]));
+}
+
+$situacao = inscricoes_situacao();
+verificar('sistema não configurado não abre inscrições', !$situacao['aberta']);
+igual('motivo e a falta de configuração', 'sem_configuracao', $situacao['motivo']);
+
+// Mesmo mandando abrir, a falta de configuração tem a ultima palavra.
+config_gravar('inscricoes_abertas', '1');
+igual('abrir na mão não vence a configuração pendente',
+    'sem_configuracao', inscricoes_situacao()['motivo']);
+
+// Sem data de evento, as telas não inventam texto.
+igual('período vazio sem datas', '', evento_periodo());
+igual('subtítulo vazio sem dados', '', evento_subtitulo());
+igual('local vazio sem dados', '', evento_local_completo());
+verificar('sem data não ha contagem regressiva', evento_dias_restantes() === null);
+
+// Preenchendo uma a uma, a lista de pendências encolhe ate zerar.
+$restantes = count(CONFIG_OBRIGATORIAS);
+$exemplos = [
+    'evento_inicio'  => '2026-11-13',
+    'evento_fim'     => '2026-11-15',
+    'evento_local'   => 'Campo Escola Regional',
+    'evento_cidade'  => 'Santa Cruz do Sul',
+    'evento_uf'      => 'RS',
+    'inscricoes_ate' => '2026-10-30',
+    'contato_email'  => 'contato@example.com',
+];
+foreach ($exemplos as $chave => $valor) {
+    config_gravar($chave, $valor);
+    $restantes--;
+    igual('pendências restantes após preencher ' . $chave,
+        $restantes, count(config_pendencias()));
+}
+
+verificar('evento configurado no final', evento_configurado());
+verificar('agora as inscrições abrem', inscricoes_situacao()['aberta']);
+igual('subtítulo montado', '13 a 15/11/2026 · Santa Cruz do Sul/RS', evento_subtitulo());
+igual('local completo montado', 'Campo Escola Regional, Santa Cruz do Sul/RS', evento_local_completo());
+
+// Campo obrigatório so com espaços continua pendente.
+config_gravar('evento_local', '   ');
+verificar('espaço em branco não conta como preenchido',
+    isset(config_pendencias()['evento_local']));
+config_gravar('evento_local', 'Campo Escola Regional');
+
+// vagas_total = 0 significa sem limite, não "esgotado".
+config_gravar('vagas_total', '0');
+$semLimite = inscricoes_situacao();
+verificar('sem limite de vagas mantem as inscrições abertas', $semLimite['aberta']);
+igual('vagas sem limite aparecem como texto', 'sem limite',
+    vagas_texto($semLimite['vagas_restantes']));
+config_gravar('vagas_total', '150');
+igual('com limite, o texto e o número', '147', vagas_texto(inscricoes_situacao()['vagas_restantes']));
+
+// ------------------------------------------------- ramos configuraveis ---
+
+grupo('Ramos configuráveis');
+
+igual('todos os ramos ativos de fábrica', count(RAMOS), count(ramos_disponiveis()));
+
+// Faixa etária editada muda o que a ficha aceita.
+config_gravar_varias(['ramo_escoteiro_min' => '11', 'ramo_escoteiro_max' => '14']);
+igual('faixa padrão aceita quem tem 14 anos no evento', [],
+    inscricao_validar(ficha(['nome' => 'Elisa Prado Nunes', 'nascimento' => '2012-04-10']))['erros']);
+
+config_gravar_varias(['ramo_escoteiro_min' => '11', 'ramo_escoteiro_max' => '13']);
+verificar('faixa reduzida passa a recusar os mesmos 14 anos',
+    isset(inscricao_validar(ficha(['nascimento' => '2012-04-10']))['erros']['ramo']));
+
+config_gravar_varias(['ramo_escoteiro_min' => '10', 'ramo_escoteiro_max' => '16']);
+igual('faixa ampliada volta a aceitar', [],
+    inscricao_validar(ficha(['nome' => 'Elisa Prado Nunes', 'nascimento' => '2012-04-10']))['erros']);
+
+// A conferência de idade pode ser desligada por completo.
+config_gravar_varias(['ramo_escoteiro_min' => '11', 'ramo_escoteiro_max' => '14']);
+verificar('com a conferência ligada, idade errada e recusada',
+    isset(inscricao_validar(ficha(['ramo' => 'lobinho']))['erros']['ramo']));
+
+config_gravar('validar_idade', '0');
+verificar('conferência desligada e reconhecida', !validar_idade_ligado());
+igual('com a conferência desligada, qualquer idade passa no ramo', [],
+    inscricao_validar(ficha(['nome' => 'Fabio Reis Antunes', 'ramo' => 'lobinho']))['erros']);
+
+// Mesmo desligada, a regra do responsável continua valendo.
+verificar('responsável continua obrigatório com a conferência desligada',
+    isset(inscricao_validar(ficha([
+        'ramo' => 'lobinho', 'responsavel_nome' => '', 'responsavel_telefone' => '',
+    ]))['erros']['responsavel_nome']));
+config_gravar('validar_idade', '1');
+
+// Ramo desativado some da ficha e deixa de ser aceito.
+config_gravar('ramos_ativos', 'escoteiro,senior');
+igual('só os ramos ativos aparecem', 2, count(ramos_disponiveis()));
+verificar('ramo ativo continua aceito',
+    !isset(inscricao_validar(ficha(['nome' => 'Gabriel Luz Moraes']))['erros']['ramo']));
+verificar('ramo desativado e recusado',
+    isset(inscricao_validar(ficha(['ramo' => 'lobinho', 'nascimento' => '2017-01-05']))['erros']['ramo']));
+config_gravar('ramos_ativos', 'lobinho,escoteiro,senior,pioneiro,adulto');
+
+// Sem data de evento, ninguem e reprovado por idade de ramo, mas o
+// responsável continua sendo exigido pela idade de hoje.
+config_gravar('evento_inicio', '');
+igual('sem data do evento, o ramo não e conferido', [],
+    inscricao_validar(ficha(['nome' => 'Helena Dias Vargas', 'ramo' => 'lobinho']))['erros']);
+verificar('sem data do evento, menor ainda precisa de responsável',
+    isset(inscricao_validar(ficha([
+        'responsavel_nome' => '', 'responsavel_telefone' => '',
+    ]))['erros']['responsavel_nome']));
+config_gravar('evento_inicio', '2026-11-13');
 
 // --------------------------------------------------- integridade do SQL ---
 
