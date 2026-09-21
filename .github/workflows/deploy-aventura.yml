@@ -1,0 +1,51 @@
+name: Deploy Aventura Escoteira 2026
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'aventura/**'
+      - '.github/workflows/deploy-aventura.yml'
+  workflow_dispatch:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Preparar PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_sqlite, mbstring
+
+      - name: Conferir a sintaxe de todos os arquivos PHP
+        run: find aventura -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Rodar os testes
+        run: php aventura/testes/executar.php
+
+  deploy:
+    needs: testes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH (rsync) para Hostinger
+        uses: easingthemes/ssh-deploy@v5.1.0
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          REMOTE_HOST: 147.93.38.158
+          REMOTE_USER: u278289683
+          REMOTE_PORT: 65002
+          SOURCE: aventura/
+          TARGET: ~/domains/aventura.eletronicagw.com.br/public_html/
+          # O rsync roda com --delete. Os arquivos listados aqui sao ignorados
+          # pela sincronia E protegidos da exclusao, entao o banco SQLite do
+          # servidor sobrevive a cada publicacao. O data/.htaccess continua
+          # sendo enviado, porque so os *.sqlite* estao de fora.
+          EXCLUDE: "/data/*.sqlite*, /testes/, .git*, *.md"

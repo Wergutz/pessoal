@@ -1,0 +1,4 @@
+# O banco e gerado em tempo de execucao e nunca vai para o repositorio.
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
