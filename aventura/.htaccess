@@ -1,15 +1,25 @@
 # Aventura Escoteira 2026 - Apache (Hostinger)
+#
+# Este arquivo funciona tanto na raiz de um dominio quanto numa subpasta
+# (ex.: dominio.com.br/aventuraescoteira26). Nenhuma regra e ancorada na
+# raiz do site, porque o caminho da aplicacao pode mudar.
 
 DirectoryIndex index.php
 
 # Nao listar diretorios.
 Options -Indexes
 
-# Bloqueia o acesso direto ao codigo e ao banco.
-RedirectMatch 404 ^/(src|data|testes)(/|$)
+# Bloqueia o acesso direto ao codigo, aos testes e ao banco, em qualquer
+# nivel de pasta. Cada uma dessas pastas tambem tem o proprio .htaccess,
+# entao a protecao nao depende so desta linha.
+RedirectMatch 404 (^|/)(src|data|testes)(/|$)
 
 <FilesMatch "\.(sqlite|sqlite-wal|sqlite-shm|sql|md)$">
     Require all denied
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
 </FilesMatch>
 
 # Cabecalhos basicos de seguranca.

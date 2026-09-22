@@ -1,13 +1,15 @@
 name: Aventura Escoteira 2026
 
-# Os testes rodam sempre. O deploy NAO roda sozinho: o dominio ainda nao foi
-# definido, entao publicar automaticamente so acertaria por sorte.
+# Destino: pontuacaoatividade.com.br/aventuraescoteira26
 #
-# Para ligar o deploy, defina no repositorio (Settings > Secrets and variables
-# > Actions) as variaveis AVENTURA_REMOTE_HOST, AVENTURA_REMOTE_USER,
-# AVENTURA_REMOTE_PORT e AVENTURA_TARGET, mais o secret SSH_PRIVATE_KEY.
-# Depois use Run workflow, ou troque o "if" do job deploy para publicar a
-# cada push na main.
+# A aplicacao fica numa SUBPASTA do dominio, do mesmo jeito que o
+# lanceiros2026. Por isso o .htaccess da aventura nao ancora nenhuma regra
+# na raiz do site: ele protege src/, data/ e testes/ em qualquer nivel.
+#
+# Host, usuario, porta e destino podem ser trocados sem mexer neste arquivo,
+# por variaveis do repositorio (Settings > Secrets and variables > Actions):
+# AVENTURA_REMOTE_HOST, AVENTURA_REMOTE_USER, AVENTURA_REMOTE_PORT e
+# AVENTURA_TARGET. O secret SSH_PRIVATE_KEY e obrigatorio.
 
 on:
   push:
@@ -20,11 +22,6 @@ on:
     paths:
       - 'aventura/**'
   workflow_dispatch:
-    inputs:
-      publicar:
-        description: 'Publicar no servidor depois dos testes'
-        type: boolean
-        default: false
 
 jobs:
   testes:
@@ -49,35 +46,29 @@ jobs:
   deploy:
     name: Publicar
     needs: testes
-    if: github.event_name == 'workflow_dispatch' && inputs.publicar
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Baixar repositório
         uses: actions/checkout@v4
 
-      - name: Conferir se o destino ja foi configurado
+      - name: Conferir se a chave SSH esta configurada
         run: |
-          faltando=""
-          [ -n "${{ vars.AVENTURA_REMOTE_HOST }}" ] || faltando="$faltando AVENTURA_REMOTE_HOST"
-          [ -n "${{ vars.AVENTURA_REMOTE_USER }}" ] || faltando="$faltando AVENTURA_REMOTE_USER"
-          [ -n "${{ vars.AVENTURA_TARGET }}" ]      || faltando="$faltando AVENTURA_TARGET"
-          [ -n "${{ secrets.SSH_PRIVATE_KEY }}" ]   || faltando="$faltando SSH_PRIVATE_KEY"
-          if [ -n "$faltando" ]; then
-            echo "::error::Destino do deploy ainda não configurado. Falta:$faltando"
-            echo "Defina em Settings > Secrets and variables > Actions."
+          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+            echo "::error::Falta o secret SSH_PRIVATE_KEY."
             exit 1
           fi
-          echo "Destino configurado. Publicando em ${{ vars.AVENTURA_TARGET }}"
+          echo "Publicando em ${{ vars.AVENTURA_TARGET || '~/domains/pontuacaoatividade.com.br/public_html/aventuraescoteira26/' }}"
 
       - name: Deploy via SSH (rsync)
         uses: easingthemes/ssh-deploy@v5.1.0
         with:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          REMOTE_HOST: ${{ vars.AVENTURA_REMOTE_HOST }}
-          REMOTE_USER: ${{ vars.AVENTURA_REMOTE_USER }}
-          REMOTE_PORT: ${{ vars.AVENTURA_REMOTE_PORT || '22' }}
+          REMOTE_HOST: ${{ vars.AVENTURA_REMOTE_HOST || '147.93.38.158' }}
+          REMOTE_USER: ${{ vars.AVENTURA_REMOTE_USER || 'u278289683' }}
+          REMOTE_PORT: ${{ vars.AVENTURA_REMOTE_PORT || '65002' }}
           SOURCE: aventura/
-          TARGET: ${{ vars.AVENTURA_TARGET }}
+          TARGET: ${{ vars.AVENTURA_TARGET || '~/domains/pontuacaoatividade.com.br/public_html/aventuraescoteira26/' }}
           # O rsync roda com --delete. Os arquivos listados aqui ficam de fora
           # da sincronia E protegidos da exclusao, entao o banco SQLite do
           # servidor sobrevive a cada publicacao. O data/.htaccess continua

@@ -714,6 +714,89 @@ verificar('sem data do evento, menor ainda precisa de responsável',
     ]))['erros']['responsavel_nome']));
 config_gravar('evento_inicio', '2026-11-13');
 
+// ------------------------------------------- protecao em subpasta ---
+
+grupo('Proteção de pastas em qualquer caminho');
+
+// A aplicação fica numa subpasta do domínio (…/aventuraescoteira26), então
+// nenhuma regra do .htaccess pode estar ancorada na raiz do site: o mesmo
+// arquivo precisa proteger src/, data/ e testes/ nos dois cenários.
+$htaccess = (string) file_get_contents(dirname(__DIR__) . '/.htaccess');
+
+verificar('.htaccess não ancora regra na raiz do site',
+    !str_contains($htaccess, 'RedirectMatch 404 ^/('),
+    'uma regra "^/" só funcionaria com a aplicação na raiz do domínio');
+
+// Extrai o padrão de bloqueio do próprio arquivo e conferre o comportamento.
+$achou = preg_match('/RedirectMatch\s+404\s+(\S+)/', $htaccess, $m) === 1;
+verificar('.htaccess declara a regra de bloqueio', $achou);
+
+if ($achou) {
+    $padrao = '#' . $m[1] . '#';
+
+    $bloquear = [
+        '/src/db.php',
+        '/data/aventura.sqlite',
+        '/testes/executar.php',
+        '/aventuraescoteira26/src/db.php',
+        '/aventuraescoteira26/data/aventura.sqlite',
+        '/aventuraescoteira26/testes/executar.php',
+        '/qualquer/nivel/src/seguranca.php',
+    ];
+    foreach ($bloquear as $url) {
+        verificar('bloqueia ' . $url, preg_match($padrao, $url) === 1);
+    }
+
+    $liberar = [
+        '/index.php',
+        '/aventuraescoteira26/',
+        '/aventuraescoteira26/index.php',
+        '/aventuraescoteira26/inscricao.php',
+        '/aventuraescoteira26/admin/painel.php',
+        '/aventuraescoteira26/assets/estilo.css',
+    ];
+    foreach ($liberar as $url) {
+        verificar('libera ' . $url, preg_match($padrao, $url) !== 1);
+    }
+}
+
+// Cada pasta sensível tambem se protege sozinha, caso o .htaccess da
+// aplicação não seja lido (AllowOverride desligado numa delas, por exemplo).
+foreach (['src', 'data', 'testes'] as $pasta) {
+    $arquivo = dirname(__DIR__) . '/' . $pasta . '/.htaccess';
+    verificar($pasta . '/ tem .htaccess próprio', is_file($arquivo));
+    verificar($pasta . '/ nega o acesso',
+        is_file($arquivo) && str_contains((string) file_get_contents($arquivo), 'Require all denied'));
+}
+
+// Todo link gerado precisa ser relativo: caminho absoluto quebraria a
+// aplicação assim que ela sair da raiz do domínio.
+$absolutos = [];
+foreach (array_merge(
+    glob(dirname(__DIR__) . '/*.php') ?: [],
+    glob(dirname(__DIR__) . '/admin/*.php') ?: [],
+    glob(dirname(__DIR__) . '/src/*.php') ?: []
+) as $fonte) {
+    $conteudo = (string) file_get_contents($fonte);
+    if (preg_match('/(href|action|src)\s*=\s*"\/(?!\/)/i', $conteudo) === 1) {
+        $absolutos[] = basename($fonte);
+    }
+}
+verificar('nenhum link absoluto no HTML', $absolutos === [], implode(', ', $absolutos));
+
+// O mesmo vale para os redirecionamentos do servidor.
+$redirecionamentos = [];
+foreach (array_merge(
+    glob(dirname(__DIR__) . '/*.php') ?: [],
+    glob(dirname(__DIR__) . '/admin/*.php') ?: []
+) as $fonte) {
+    if (preg_match('/redirecionar\(\s*[\'"]\//', (string) file_get_contents($fonte)) === 1) {
+        $redirecionamentos[] = basename($fonte);
+    }
+}
+verificar('nenhum redirecionamento absoluto', $redirecionamentos === [],
+    implode(', ', $redirecionamentos));
+
 // --------------------------------------------------- integridade do SQL ---
 
 grupo('Integridade do codigo');

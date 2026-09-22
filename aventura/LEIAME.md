@@ -139,28 +139,28 @@ em produção.
 
 ## Publicação
 
-`.github/workflows/deploy-aventura.yml` tem dois jobs.
+Destino: **`pontuacaoatividade.com.br/aventuraescoteira26`**.
 
-**Testes** rodam sempre: a cada push ou pull request que toque em `aventura/`.
+A aplicação roda numa **subpasta** do domínio, não num subdomínio. Isso já
+está contemplado: todos os links são relativos e o `.htaccess` não ancora
+nenhuma regra na raiz do site, então `src/`, `data/` e `testes/` ficam
+protegidos em qualquer nível de pasta. Há teste para isso.
 
-**Publicar** não roda sozinho, porque o domínio ainda não foi definido. Ele só
-executa por *Run workflow* com a opção `publicar` marcada, e antes de enviar
-qualquer coisa confere se o destino foi configurado — se não foi, falha com
-uma mensagem dizendo o que falta, sem tocar no servidor.
+`.github/workflows/deploy-aventura.yml` roda sintaxe e testes a cada push ou
+pull request que toque em `aventura/`, e publica por rsync depois que os
+testes passam (em push na `main` ou por *Run workflow*). Pull request só
+testa, não publica.
 
-Para ligar quando o domínio estiver definido, em
-*Settings › Secrets and variables › Actions*:
+O único pré-requisito é o secret `SSH_PRIVATE_KEY`. Host, usuário, porta e
+destino têm padrão embutido e só precisam de variável se mudarem:
 
-| Onde | Nome | Exemplo |
+| Onde | Nome | Padrão |
 | --- | --- | --- |
+| Secret | `SSH_PRIVATE_KEY` | — (obrigatório) |
 | Variable | `AVENTURA_REMOTE_HOST` | `147.93.38.158` |
 | Variable | `AVENTURA_REMOTE_USER` | `u278289683` |
-| Variable | `AVENTURA_REMOTE_PORT` | `65002` (padrão `22`) |
-| Variable | `AVENTURA_TARGET` | `~/domains/SEU-DOMINIO/public_html/` |
-| Secret | `SSH_PRIVATE_KEY` | a chave privada |
-
-Para publicar a cada push na `main` depois disso, troque o `if:` do job
-`deploy` por `if: github.ref == 'refs/heads/main'`.
+| Variable | `AVENTURA_REMOTE_PORT` | `65002` |
+| Variable | `AVENTURA_TARGET` | `~/domains/pontuacaoatividade.com.br/public_html/aventuraescoteira26/` |
 
 O rsync roda com `--delete`, mas `/data/*.sqlite*` está em `EXCLUDE`: o banco
 no servidor sobrevive a cada publicação.
