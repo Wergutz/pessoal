@@ -1,0 +1,31 @@
+name: Deploy campeonato para eletronicagw.com.br/campeonato
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'campeonato/**'
+      - '.github/workflows/deploy-campeonato.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      # Sem --delete: os dados do campeonato (data/db.json) e os escudos
+      # enviados (uploads/) ficam só no servidor e nunca são apagados.
+      - name: Deploy via SSH (rsync) para Hostinger
+        uses: easingthemes/ssh-deploy@v5.1.0
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          REMOTE_HOST: 147.93.38.158
+          REMOTE_USER: u278289683
+          REMOTE_PORT: 65002
+          ARGS: "-rlgoDzvc -i"
+          SOURCE: campeonato/
+          TARGET: ~/domains/eletronicagw.com.br/public_html/campeonato/
+          EXCLUDE: ".git, data/db.json, uploads/*.png, uploads/*.jpg, uploads/*.webp, uploads/*.gif"
