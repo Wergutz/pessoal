@@ -119,16 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $tid = $_POST['time'] ?? '';
                 $db = db_load();
                 if (!isset($db['times'][$tid])) throw new RuntimeException('Equipe inválida.');
-                $arquivo = null;
-                if (!empty($_FILES['escudo']['name']) && $_FILES['escudo']['error'] === UPLOAD_ERR_OK) {
-                    if ($_FILES['escudo']['size'] > 2 * 1024 * 1024) throw new RuntimeException('Escudo muito grande (máx. 2 MB).');
-                    $info = @getimagesize($_FILES['escudo']['tmp_name']);
-                    $ext = match ($info['mime'] ?? '') { 'image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp', 'image/gif' => 'gif', default => null };
-                    if (!$ext) throw new RuntimeException('Formato de imagem não aceito (use PNG, JPG, WEBP ou GIF).');
-                    if (!is_dir(UPLOAD_DIR)) mkdir(UPLOAD_DIR, 0775, true);
-                    $arquivo = $tid . '-' . bin2hex(random_bytes(4)) . '.' . $ext;
-                    move_uploaded_file($_FILES['escudo']['tmp_name'], UPLOAD_DIR . '/' . $arquivo);
-                }
+                $arquivo = salvar_imagem('escudo', $tid);
                 $novaSenha = (string)($_POST['nova_senha'] ?? '');
                 if ($novaSenha !== '' && mb_strlen($novaSenha) < 6) throw new RuntimeException('A senha da equipe precisa ter pelo menos 6 caracteres.');
                 db_update(function (&$db) use ($tid, $arquivo, $novaSenha) {
@@ -140,9 +131,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $t['cor1'] = cor_valida($_POST['cor1'] ?? '', $t['cor1']);
                     $t['cor2'] = cor_valida($_POST['cor2'] ?? '', $t['cor2']);
                     $antigo = $t['escudo'];
-                    if ($arquivo) $t['escudo'] = 'uploads/' . $arquivo;
+                    if ($arquivo) $t['escudo'] = $arquivo;
                     elseif (!empty($_POST['remover_escudo'])) $t['escudo'] = '';
-                    if ($antigo && $antigo !== $t['escudo'] && str_starts_with($antigo, 'uploads/')) @unlink(UPLOAD_DIR . '/' . basename($antigo));
+                    if ($antigo && $antigo !== $t['escudo']) apagar_upload($antigo);
                     if ($novaSenha !== '') $t['senha_hash'] = password_hash($novaSenha, PASSWORD_DEFAULT);
                 });
                 flash('Equipe atualizada.');
@@ -151,7 +142,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // ---------------- Configurações gerais ----------------
             case 'config':
                 if (!$coord) throw new RuntimeException('Sem permissão.');
-                db_update(function (&$db) {
+                $logo = salvar_imagem('logo', 'logo');
+                db_update(function (&$db) use ($logo) {
+                    $antigo = $db['logo'] ?? '';
+                    if ($logo) $db['logo'] = $logo;
+                    elseif (!empty($_POST['remover_logo'])) $db['logo'] = '';
+                    if ($antigo && $antigo !== ($db['logo'] ?? '')) apagar_upload($antigo);
                     $n = trim($_POST['nome'] ?? '');
                     if ($n !== '') $db['nome'] = mb_substr($n, 0, 60);
                     $db['elenco_bloqueado'] = !empty($_POST['elenco_bloqueado']);
@@ -412,8 +408,11 @@ elseif ($aba === 'equipes' && $coord): ?>
 elseif ($aba === 'config' && $coord): ?>
   <section class="card estreito">
     <h2>Configurações</h2>
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
       <?= csrf_campo() ?><input type="hidden" name="acao" value="config"><input type="hidden" name="volta" value="painel.php?aba=config">
+      <?php if ($lg = logo_url($db)): ?><img class="logo-prev" src="<?= e($lg) ?>" alt="Logo atual"><?php endif; ?>
+      <label>Logo oficial do campeonato (PNG, JPG ou WEBP, até 3 MB) <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+      <?php if (!empty($db['logo'])): ?><label class="check"><input type="checkbox" name="remover_logo" value="1"> Remover logo enviado</label><?php endif; ?>
       <label>Nome do campeonato <input name="nome" value="<?= e($db['nome']) ?>" maxlength="60"></label>
       <label class="check"><input type="checkbox" name="elenco_bloqueado" value="1" <?= !empty($db['elenco_bloqueado']) ? 'checked' : '' ?>> Bloquear edição de elencos pelas equipes</label>
       <button class="btn">Salvar</button>

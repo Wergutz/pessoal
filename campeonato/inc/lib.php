@@ -396,6 +396,36 @@ function escudo(array $db, ?string $tid, string $tam = 'md'): string
         . e(mb_substr($t['sigla'], 0, 3)) . '</span>';
 }
 
+/** Logo do campeonato: o enviado pelo painel ou assets/logo.png (se existir). */
+function logo_url(array $db): string
+{
+    if (!empty($db['logo'])) return $db['logo'];
+    foreach (['png', 'webp', 'jpg'] as $ext) {
+        if (file_exists(__DIR__ . '/../assets/logo.' . $ext)) return 'assets/logo.' . $ext;
+    }
+    return '';
+}
+
+/** Salva uma imagem enviada em uploads/ e devolve o caminho relativo (ou null se nada foi enviado). */
+function salvar_imagem(string $campo, string $prefixo): ?string
+{
+    if (empty($_FILES[$campo]['name'])) return null;
+    if ($_FILES[$campo]['error'] !== UPLOAD_ERR_OK) throw new RuntimeException('Falha no envio da imagem.');
+    if ($_FILES[$campo]['size'] > 3 * 1024 * 1024) throw new RuntimeException('Imagem muito grande (máx. 3 MB).');
+    $info = @getimagesize($_FILES[$campo]['tmp_name']);
+    $ext = match ($info['mime'] ?? '') { 'image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp', 'image/gif' => 'gif', default => null };
+    if (!$ext) throw new RuntimeException('Formato de imagem não aceito (use PNG, JPG, WEBP ou GIF).');
+    if (!is_dir(UPLOAD_DIR)) mkdir(UPLOAD_DIR, 0775, true);
+    $arquivo = $prefixo . '-' . bin2hex(random_bytes(4)) . '.' . $ext;
+    if (!move_uploaded_file($_FILES[$campo]['tmp_name'], UPLOAD_DIR . '/' . $arquivo)) throw new RuntimeException('Não foi possível salvar a imagem.');
+    return 'uploads/' . $arquivo;
+}
+
+function apagar_upload(string $caminho): void
+{
+    if (str_starts_with($caminho, 'uploads/')) @unlink(UPLOAD_DIR . '/' . basename($caminho));
+}
+
 function nome_time(array $db, ?string $tid, string $padrao = 'A definir'): string
 {
     return $tid !== null && isset($db['times'][$tid]) ? $db['times'][$tid]['nome'] : $padrao;

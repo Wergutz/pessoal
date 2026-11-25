@@ -72,6 +72,8 @@ function bloco_time(array $db, array $j, string $lado): void
   .barra a { color: #f5c518; }
   .folha { width: 190mm; min-height: 277mm; margin: 12px auto; background: #fff; padding: 8mm; box-shadow: 0 2px 10px rgba(0,0,0,.15); display: flex; flex-direction: column; }
   .cab { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #000; padding-bottom: 6px; margin-bottom: 8px; }
+  .cab .logo { height: 60px; width: auto; max-width: 140px; object-fit: contain; margin-right: 12px; }
+  .cab .cab-txt { flex: 1; }
   .cab h1 { margin: 0; font-size: 18px; text-transform: uppercase; }
   .cab h2 { margin: 2px 0 0; font-size: 13px; font-weight: normal; }
   .cab .num { font-size: 22px; font-weight: bold; border: 2px solid #000; padding: 2px 10px; }
@@ -123,7 +125,8 @@ function bloco_time(array $db, array $j, string $lado): void
 <?php foreach ($jogos as $j): $mata = $j['fase'] !== 'grupo'; ?>
 <section class="folha">
   <div class="cab">
-    <div>
+    <?php if ($lg = logo_url($db)): ?><img class="logo" src="<?= e($lg) ?>" alt=""><?php endif; ?>
+    <div class="cab-txt">
       <h1><?= e($db['nome']) ?></h1>
       <h2>Súmula de jogo · <?= e(nome_fase($j)) ?></h2>
     </div>

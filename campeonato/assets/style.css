@@ -28,7 +28,10 @@ code { background: var(--bg2); padding: 1px 5px; border-radius: 4px; }
 /* topo */
 .topo { background: #000; border-bottom: 3px solid var(--amarelo); position: sticky; top: 0; z-index: 10; }
 .topo-in { max-width: 1100px; margin: auto; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.marca { font-weight: 800; font-size: 1.1rem; color: #fff; text-transform: uppercase; letter-spacing: .03em; }
+.marca { font-weight: 800; font-size: 1.1rem; color: #fff; text-transform: uppercase; letter-spacing: .03em; display: inline-flex; align-items: center; gap: 10px; }
+.marca:hover { text-decoration: none; }
+.marca img { height: 44px; width: auto; max-width: 120px; object-fit: contain; }
+.logo-prev { display: block; max-height: 120px; max-width: 100%; margin-bottom: 12px; background: #000; border-radius: 10px; padding: 8px; }
 .topo nav { display: flex; gap: 4px; flex-wrap: wrap; }
 .topo nav a { color: #ddd; padding: 6px 10px; border-radius: 8px; font-weight: 600; font-size: .92rem; }
 .topo nav a:hover { background: #222; text-decoration: none; }

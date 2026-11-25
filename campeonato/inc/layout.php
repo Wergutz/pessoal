@@ -16,12 +16,12 @@ function topo(string $titulo, string $ativo = ''): void
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= e($titulo) ?> · <?= e($db['nome']) ?></title>
-<link rel="stylesheet" href="assets/style.css?v=2">
+<link rel="stylesheet" href="assets/style.css?v=3">
 </head>
 <body>
 <header class="topo">
   <div class="topo-in">
-    <a class="marca" href="index.php">⚽ <?= e($db['nome']) ?></a>
+    <a class="marca" href="index.php"><?php if ($lg = logo_url($db)): ?><img src="<?= e($lg) ?>" alt=""><?php else: ?>⚽<?php endif; ?> <span><?= e($db['nome']) ?></span></a>
     <nav>
       <?php foreach ($links as $k => [$href, $txt]): ?>
         <a href="<?= $href ?>" class="<?= $ativo === $k ? 'ativo' : '' ?>"><?= $txt ?></a>
