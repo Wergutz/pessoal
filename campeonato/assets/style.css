@@ -180,3 +180,4 @@ label.check { display: flex; align-items: center; color: var(--txt); }
 .stats strong { display: block; font-size: 1.5rem; color: var(--amarelo); }
 .stats span { font-size: .75rem; color: var(--muted); text-transform: uppercase; }
 @media (max-width: 500px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .marca img + span { display: none; } }

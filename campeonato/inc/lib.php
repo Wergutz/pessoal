@@ -396,14 +396,13 @@ function escudo(array $db, ?string $tid, string $tam = 'md'): string
         . e(mb_substr($t['sigla'], 0, 3)) . '</span>';
 }
 
-/** Logo do campeonato: o enviado pelo painel ou assets/logo.png (se existir). */
-function logo_url(array $db): string
+/** Logo do campeonato: o enviado pelo painel ou o padrão em assets/. */
+function logo_url(array $db, bool $impressao = false): string
 {
     if (!empty($db['logo'])) return $db['logo'];
-    foreach (['png', 'webp', 'jpg'] as $ext) {
-        if (file_exists(__DIR__ . '/../assets/logo.' . $ext)) return 'assets/logo.' . $ext;
-    }
-    return '';
+    // logo padrão: texto branco para o site (fundo preto), texto preto para impressão
+    $arq = $impressao ? 'assets/logo-print.png' : 'assets/logo.png';
+    return file_exists(__DIR__ . '/../' . $arq) ? $arq : '';
 }
 
 /** Salva uma imagem enviada em uploads/ e devolve o caminho relativo (ou null se nada foi enviado). */
