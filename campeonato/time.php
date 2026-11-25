@@ -37,7 +37,7 @@ topo($t['nome'], 'times');
 
 <div class="grade-2">
   <section class="card">
-    <h2>Jogos da equipe</h2>
+    <h2>Jogos da equipe <a class="btn btn-sm btn-sec imprimir-btn" href="imprimir.php?time=<?= e($tid) ?>" target="_blank">🖨️ Imprimir</a></h2>
     <?php foreach ($jogos as $j) card_jogo($db, $j, $tid); ?>
     <?php if (!$jogos): ?><p class="muted">Nenhum jogo.</p><?php endif; ?>
   </section>

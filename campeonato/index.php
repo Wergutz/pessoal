@@ -25,7 +25,7 @@ topo('Classificação', 'index');
 <?php endif; ?>
 
 <section class="card">
-  <h2>Classificação</h2>
+  <h2>Classificação <a class="btn btn-sm btn-sec imprimir-btn" href="imprimir.php" target="_blank">🖨️ Imprimir</a></h2>
   <div class="tabela-wrap">
   <table class="tabela">
     <thead>

@@ -181,3 +181,4 @@ label.check { display: flex; align-items: center; color: var(--txt); }
 .stats span { font-size: .75rem; color: var(--muted); text-transform: uppercase; }
 @media (max-width: 500px) { .stats { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 600px) { .marca img + span { display: none; } }
+.imprimir-btn { margin-left: auto; text-transform: none; letter-spacing: 0; }

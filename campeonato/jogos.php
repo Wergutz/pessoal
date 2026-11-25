@@ -23,7 +23,7 @@ foreach ($db['jogos'] as $j) {
 topo('Jogos', 'jogos');
 ?>
 <section class="card">
-  <h2>Tabela de jogos</h2>
+  <h2>Tabela de jogos <a class="btn btn-sm btn-sec imprimir-btn" href="imprimir.php<?= $filtro ? '?time=' . e($filtro) : '' ?>" target="_blank">🖨️ Imprimir</a></h2>
   <div class="filtros">
     <a href="jogos.php" class="chip <?= $filtro === '' ? 'ativo' : '' ?>">Todos</a>
     <?php foreach ($db['times'] as $tid => $t): ?>
