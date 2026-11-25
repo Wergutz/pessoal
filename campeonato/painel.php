@@ -287,6 +287,14 @@ elseif ($aba === 'jogos' && $coord): ?>
   <section class="card">
     <h2>Jogos e resultados</h2>
     <p class="muted pequeno">Clique em um jogo para lançar data, local, placar e goleadores. Semifinal e Final são preenchidas automaticamente ao fim da fase de classificação.</p>
+    <div class="filtros imprimir">
+      <span class="muted pequeno">🖨️ Imprimir súmulas:</span>
+      <?php foreach (array_unique(array_filter(array_column($db['jogos'], 'rodada'))) as $r): ?>
+        <a class="chip" href="sumula.php?rodada=<?= $r ?>" target="_blank">Rodada <?= $r ?></a>
+      <?php endforeach; ?>
+      <a class="chip" href="sumula.php?rodada=final" target="_blank">Semi + Final</a>
+      <a class="chip" href="sumula.php?rodada=todos" target="_blank">Todas</a>
+    </div>
     <div class="tabela-wrap">
     <table class="tabela lista-jogos">
       <thead><tr><th>Jogo</th><th class="esq">Fase</th><th class="esq">Data</th><th class="dir">Mandante</th><th>Placar</th><th class="esq">Visitante</th><th>Status</th><th></th></tr></thead>
@@ -300,7 +308,7 @@ elseif ($aba === 'jogos' && $coord): ?>
           <td class="nowrap"><?= placar($j) ?></td>
           <td class="esq"><?= e(nome_time($db, $j['fora'], rotulo_vaga($j, 'fora'))) ?></td>
           <td><?= $j['encerrado'] ? '<span class="tag tag-ok">Encerrado</span>' : '<span class="tag">Pendente</span>' ?></td>
-          <td><a class="btn btn-sm" href="painel.php?aba=jogo&id=<?= e($j['id']) ?>">Editar</a></td>
+          <td class="nowrap"><a class="btn btn-sm" href="painel.php?aba=jogo&id=<?= e($j['id']) ?>">Editar</a> <a class="btn btn-sm btn-sec" href="sumula.php?id=<?= e($j['id']) ?>" target="_blank" title="Imprimir súmula">🖨️ Súmula</a></td>
         </tr>
       <?php endforeach; ?>
       </tbody>
@@ -365,7 +373,7 @@ elseif ($aba === 'jogo' && $coord):
       <?php if ($definido): ?>
         <label class="check"><input type="checkbox" name="encerrado" value="1" <?= $j['encerrado'] ? 'checked' : '' ?>> Jogo encerrado (conta na classificação)</label>
       <?php endif; ?>
-      <div class="acoes"><button class="btn">Salvar</button> <a href="painel.php?aba=jogos">Cancelar</a></div>
+      <div class="acoes"><button class="btn">Salvar</button> <a href="sumula.php?id=<?= e($j['id']) ?>" target="_blank">🖨️ Imprimir súmula</a> <a href="painel.php?aba=jogos">Cancelar</a></div>
     </form>
   </section>
 
